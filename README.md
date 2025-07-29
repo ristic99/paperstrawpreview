@@ -37,13 +37,13 @@ The script uses [Three.js](https://threejs.org/) to render a 3D spiral mesh and 
 
 | File             | Description                               |
 |------------------|-------------------------------------------|
-| `paperstraw.html`| Main HTML and JavaScript for visualization |
+| `paperstrawpreview.html`| Main HTML and JavaScript for visualization |
 | `texture.png`    | Example texture for testing                |
 | `texture.psd`    | Editable Photoshop file for custom designs |
 
 ## Usage Instructions
 
-1. Open `paperstraw.html` in a web browser (no server needed).
+1. Open `paperstrawpreview.html` in a web browser (no server needed).
 2. Use the "Load texture" input at the top-left corner to upload your image.
 3. The 3D model will update in real time with your uploaded texture.
 4. Use mouse controls to rotate or zoom the preview.
