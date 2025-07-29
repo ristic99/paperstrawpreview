@@ -62,8 +62,8 @@
             background: rgba(0,0,0,0.9);
         }
     </style>
-	</head>
-	<body>
+</head>
+<body>
     <div id="file-input">
         <label for="texture-file">Load texture:</label><br>
         <input type="file" id="texture-file" accept="image/*">
@@ -72,174 +72,253 @@
     <button id="play-button">Play</button>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/build/three.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/controls/OrbitControls.js"></script>
 
     <script>
-        var scene = new THREE.Scene();
-		var camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 1, 1000);
-		camera.position.set(20, 3, 5);
-		var renderer = new THREE.WebGLRenderer({
-			antialias: true
-		});
-		renderer.setPixelRatio(window.devicePixelRatio);
-		renderer.setSize(window.innerWidth, window.innerHeight);
-		renderer.setClearColor(0x666666);
-		document.body.appendChild(renderer.domElement);
-
-		var controls = new THREE.OrbitControls(camera, renderer.domElement);
-
-		var light = new THREE.DirectionalLight(0xffffff, 0.5);
-		light.position.set(1, 1, 1);
-		scene.add(light);
-		scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-
-		var paperLength = 28.5;
-		var diameter = 0.8;
-		
-		var circumference = Math.PI * diameter;
-		var numberOfTurns = paperLength / circumference * 0.707;
-		var turnLength = circumference / Math.cos(Math.PI / 4);
-		
-		console.log(turnLength);
-
-		var rbnWidth = turnLength;
-		var rbnSteps = numberOfTurns;
-		var rbnStepLength = turnLength;
-		var rbnSegsPerStep = 80;
-		var rbnRadius = diameter;
-
-		var rbnGeom = new THREE.PlaneGeometry(rbnSteps * Math.PI * 2, rbnWidth, rbnSteps * rbnSegsPerStep, 1);
-		rbnGeom.computeBoundingBox();
-		var size = new THREE.Vector3();
-		rbnGeom.boundingBox.getSize(size);
-		rbnGeom.translate(size.x * 0.5, size.y * 0.5, size.z * 0.5);
-
-		rbnGeom.vertices.forEach(v => {
-			let angle = -v.x;
-			let radius = rbnRadius + v.z;
-			let shift = (v.x / (Math.PI * 2)) * rbnStepLength + v.y;
-			  
-			v.x = Math.cos(angle) * radius;
-			v.y = shift;
-			v.z = Math.sin(angle) * radius;
-		});
-		
-		const cos45 = Math.cos(Math.PI / 4);
-		const rotationAngle = -Math.atan((1 - cos45) / (2 * Math.PI));
-		
-		console.log("angle " + rotationAngle);
-		
-		rbnGeom.faceVertexUvs[0].forEach(uvs => {
-			uvs.forEach(uv => {
-				let originalU = uv.x;
-				let originalV = uv.y;
-				uv.x = originalU * Math.cos(rotationAngle) - originalV * Math.sin(rotationAngle);
-				uv.y = originalU * Math.sin(rotationAngle) + originalV * Math.cos(rotationAngle);
-			});
-		});
-
-		rbnGeom.computeFaceNormals();
-		rbnGeom.computeVertexNormals();
-		rbnGeom.center();
-
-		const ribbonMaterial = new THREE.MeshStandardMaterial({
-			color: 0xffffff,
-			side: THREE.DoubleSide
-		});
-
-		const ribbon = new THREE.Mesh(rbnGeom, ribbonMaterial);
-		scene.add(ribbon);
-
-        let isPlaying = false;
-        const rotationSpeed = 0.01;
-
-        document.getElementById('texture-file').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file && file.type.startsWith('image/')) {
+        class StrawVisualizer {
+            constructor() {
+                // Configuration
+                this.config = {
+                    paperLength: 28.5,
+                    diameter: 0.8,
+                    rotationSpeed: 0.01,
+                    segsPerStep: 80
+                };
+                
+                // State
+                this.state = {
+                    isPlaying: false,
+                    mouseDown: false,
+                    lastMousePos: { x: 0, y: 0 }
+                };
+                
+                // Three.js objects
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.ribbon = null;
+                this.ribbonMaterial = null;
+                
+                this.init();
+            }
+			
+            // INITIALIZATION
+            init() {
+                this.setupScene();
+                this.createStrawGeometry();
+                this.setupControls();
+                this.setupEventListeners();
+                this.startRenderLoop();
+            }
+            
+            setupScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(100, window.innerWidth / window.innerHeight, 1, 1000);
+                this.camera.position.set(20, 3, 5);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x666666);
+                document.body.appendChild(this.renderer.domElement);
+                
+                // Lighting
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+                directionalLight.position.set(1, 1, 1);
+                this.scene.add(directionalLight);
+                this.scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+                
+                // Controls (disabled for custom interaction)
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableRotate = false;
+                this.controls.enableZoom = false;
+                this.controls.enablePan = false;
+            }
+			
+            // STRAW GEOMETRY CREATION
+            createStrawGeometry() {
+                const geometry = this.generateRibbonGeometry();
+                this.ribbonMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    side: THREE.DoubleSide
+                });
+                
+                this.ribbon = new THREE.Mesh(geometry, this.ribbonMaterial);
+                this.scene.add(this.ribbon);
+            }
+            
+            generateRibbonGeometry() {
+                const { paperLength, diameter, segsPerStep } = this.config;
+                
+                // Calculate straw parameters
+                const circumference = Math.PI * diameter;
+                const numberOfTurns = paperLength / circumference * 0.707;
+                const turnLength = circumference / Math.cos(Math.PI / 4);
+                
+                // Create base plane geometry
+                const geometry = new THREE.PlaneGeometry(
+                    numberOfTurns * Math.PI * 2, 
+                    turnLength, 
+                    numberOfTurns * segsPerStep, 
+                    1
+                );
+                
+                // Transform vertices to create spiral
+                this.transformVertices(geometry, diameter, turnLength);
+                
+                // Apply UV transformations
+                this.transformUVs(geometry);
+                
+                // Finalize geometry
+                geometry.computeFaceNormals();
+                geometry.computeVertexNormals();
+                geometry.center();
+                
+                return geometry;
+            }
+            
+            transformVertices(geometry, radius, stepLength) {
+                geometry.computeBoundingBox();
+                const size = new THREE.Vector3();
+                geometry.boundingBox.getSize(size);
+                geometry.translate(size.x * 0.5, size.y * 0.5, size.z * 0.5);
+                
+                geometry.vertices.forEach(vertex => {
+                    const angle = -vertex.x;
+                    const currentRadius = radius + vertex.z;
+                    const shift = (vertex.x / (Math.PI * 2)) * stepLength + vertex.y;
+                    
+                    vertex.x = Math.cos(angle) * currentRadius;
+                    vertex.y = shift;
+                    vertex.z = Math.sin(angle) * currentRadius;
+                });
+            }
+            
+            transformUVs(geometry) {
+                const cos45 = Math.cos(Math.PI / 4);
+                const rotationAngle = -Math.atan((1 - cos45) / (2 * Math.PI));
+                
+                console.log('UV rotation angle:', rotationAngle);
+                
+                geometry.faceVertexUvs[0].forEach(uvs => {
+                    uvs.forEach(uv => {
+                        const originalU = uv.x;
+                        const originalV = uv.y;
+                        uv.x = originalU * Math.cos(rotationAngle) - originalV * Math.sin(rotationAngle);
+                        uv.y = originalU * Math.sin(rotationAngle) + originalV * Math.cos(rotationAngle);
+                    });
+                });
+            }
+			
+            // TEXTURE HANDLING
+            loadTexture(file) {
+                if (!file || !file.type.startsWith('image/')) return;
+                
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = (e) => {
                     const img = new Image();
-                    img.onload = function() {
+                    img.onload = () => {
                         const texture = new THREE.Texture(img);
-                        texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+                        texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
                         texture.wrapS = THREE.RepeatWrapping;
                         texture.wrapT = THREE.RepeatWrapping;
                         texture.needsUpdate = true;
                         
-                        ribbonMaterial.map = texture;
-                        ribbonMaterial.needsUpdate = true;
+                        this.ribbonMaterial.map = texture;
+                        this.ribbonMaterial.needsUpdate = true;
                     };
                     img.src = e.target.result;
                 };
                 reader.readAsDataURL(file);
             }
-        });
-
-        const playButton = document.getElementById('play-button');
-        playButton.addEventListener('click', function() {
-            isPlaying = !isPlaying;
-            playButton.textContent = isPlaying ? 'Stop' : 'Play';
-        });
-
-        controls.enableRotate = false;
-        controls.enableZoom = false;
-        controls.enablePan = false;
-
-        let mouseDown = false;
-        let lastMouseX = 0;
-        let lastMouseY = 0;
-
-        renderer.domElement.addEventListener('mousedown', onMouseDown, false);
-        renderer.domElement.addEventListener('mousemove', onMouseMove, false);
-        renderer.domElement.addEventListener('mouseup', onMouseUp, false);
-		renderer.domElement.addEventListener('wheel', onMouseWheel, false);
-
-        function onMouseDown(event) {
-            mouseDown = true;
-            lastMouseX = event.clientX;
-            lastMouseY = event.clientY;
-        }
-
-        function onMouseMove(event) {
-            if (mouseDown) {
-                const deltaX = event.clientX - lastMouseX;
-                const deltaY = event.clientY - lastMouseY;
-
-                ribbon.rotation.y += deltaX * 0.01;
-                //ribbon.rotation.z += deltaY * 0.01;
-
-                lastMouseX = event.clientX;
-                lastMouseY = event.clientY;
+            
+            // CONTROLS & INTERACTION
+            setupControls() {
+                const canvas = this.renderer.domElement;
+                
+                // Mouse events
+                canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                canvas.addEventListener('mouseup', () => this.onMouseUp());
+                canvas.addEventListener('wheel', (e) => this.onMouseWheel(e));
+                
+                // Window resize
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+            
+            onMouseDown(event) {
+                this.state.mouseDown = true;
+                this.state.lastMousePos.x = event.clientX;
+                this.state.lastMousePos.y = event.clientY;
+            }
+            
+            onMouseMove(event) {
+                if (!this.state.mouseDown) return;
+                
+                const deltaX = event.clientX - this.state.lastMousePos.x;
+                this.ribbon.rotation.y += deltaX * this.config.rotationSpeed;
+                
+                this.state.lastMousePos.x = event.clientX;
+                this.state.lastMousePos.y = event.clientY;
+            }
+            
+            onMouseUp() {
+                this.state.mouseDown = false;
+            }
+            
+            onMouseWheel(event) {
+                const delta = -event.deltaY * 0.001;
+                this.ribbon.scale.addScalar(delta);
+            }
+            
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            // ANIMATION CONTROLS
+            togglePlayback() {
+                this.state.isPlaying = !this.state.isPlaying;
+                const button = document.getElementById('play-button');
+                button.textContent = this.state.isPlaying ? 'Stop' : 'Play';
+            }
+            
+            updateAnimation() {
+                if (this.state.isPlaying) {
+                    this.ribbon.rotation.y += this.config.rotationSpeed;
+                }
+            }
+            
+            // EVENT LISTENERS SETUP
+            setupEventListeners() {
+                document.getElementById('texture-file').addEventListener('change', (event) => {
+                    this.loadTexture(event.target.files[0]);
+                });
+                document.getElementById('play-button').addEventListener('click', () => {
+                    this.togglePlayback();
+                });
+            }
+            
+            // RENDER LOOP
+            startRenderLoop() {
+                const render = () => {
+                    requestAnimationFrame(render);
+                    this.updateAnimation();
+                    this.renderer.render(this.scene, this.camera);
+                };
+                render();
             }
         }
-
-        function onMouseUp() {
-            mouseDown = false;
-        }
-		
-		function onMouseWheel(event) {
-            const delta = -event.deltaY * 0.001;
-            ribbon.scale.addScalar(delta);
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', function() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        render();
-
-		function render() {
-			requestAnimationFrame(render);
-			
-			if (isPlaying) {
-				ribbon.rotation.y += rotationSpeed;
-			}
-			
-			renderer.render(scene, camera);
-		}
+        
+        // Start application when page is loaded
+        new StrawVisualizer();
+        
     </script>
 </body>
 </html>
