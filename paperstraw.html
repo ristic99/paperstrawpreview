@@ -103,8 +103,8 @@
 			v.z = Math.sin(angle) * radius;
 		});
 		
-		const rotationAngleDegrees = -2.5;
-		const rotationAngle = rotationAngleDegrees * (Math.PI / 180);
+		const cos45 = Math.cos(Math.PI / 4);
+		const rotationAngle = -Math.atan((1 - cos45) / (2 * Math.PI));
 		
 		console.log("angle " + rotationAngle);
 		
