@@ -2,6 +2,8 @@
 
 This project provides a web-based 3D visualization tool for previewing paper straw textures. It was developed as a custom feature for a client to help showcase how printed designs will appear on spiral-wrapped paper straws.
 
+Live Preview: [https://ristic99.github.io/paperstrawpreview/](https://ristic99.github.io/paperstrawpreview/)
+
 ## Features
 
 - Realistic spiral geometry simulating a rolled paper straw
