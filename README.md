@@ -37,7 +37,7 @@ The script uses [Three.js](https://threejs.org/) to render a 3D spiral mesh and 
 
 | File             | Description                               |
 |------------------|-------------------------------------------|
-| `paperstrawpreview.html`| Main HTML and JavaScript for visualization |
+| `index.html`| Main HTML and JavaScript for visualization |
 | `texture.png`    | Example texture for testing                |
 | `texture.psd`    | Editable Photoshop file for custom designs |
 
